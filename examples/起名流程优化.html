@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>起名流程优化</title>
+<meta name="generator" content="xmind2html 1.4.0">
 <style>
   :root {
     --c-bg: #16171b;
@@ -129,11 +130,43 @@
     flex: none; padding: 7px 16px; font-size: 12px; color: var(--c-sub);
     border-top: 1px solid var(--c-border); background: var(--c-header);
   }
+
+  /* 欢迎页（无数据时显示） */
+  #welcome {
+    position: fixed; inset: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--c-bg);
+  }
+  #welcome.hidden { display: none; }
+  .welcome-card {
+    text-align: center; padding: 48px 64px;
+    border: 2px dashed var(--c-border); border-radius: 16px;
+    max-width: 520px;
+  }
+  .welcome-title { font-size: 28px; font-weight: 600; letter-spacing: .5px; }
+  .welcome-sub { margin-top: 12px; font-size: 14px; color: var(--c-sub); line-height: 22px; }
+  .welcome-card button {
+    margin-top: 24px; font: inherit; font-size: 14px; padding: 8px 24px;
+    border: none; border-radius: 8px; cursor: pointer;
+    background: var(--c-sel); color: #fff;
+  }
+  .welcome-card button:hover { filter: brightness(1.1); }
+  .welcome-hint { margin-top: 20px; font-size: 12px; color: var(--c-sub); opacity: .8; }
+
+  /* 整窗拖拽提示 */
+  #dropMask {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--c-bg) 78%, transparent);
+    border: 3px dashed var(--c-sel); pointer-events: none;
+    font-size: 20px; font-weight: 600; color: var(--c-sel);
+  }
+  #dropMask.show { display: flex; }
 </style>
 </head>
 <body>
 <header>
-  <h1 id="docTitle"></h1>
+  <h1 id="docTitle">xmind2html</h1>
   <span class="stats" id="stats"></span>
   <span class="legend" id="legend"></span>
   <span class="spacer"></span>
@@ -147,8 +180,8 @@
     <button id="btnUndo" title="撤销（Ctrl+Z）">撤销</button>
     <button id="btnRedo" title="重做（Ctrl+Y）">重做</button>
     <span class="sep"></span>
+    <button id="btnImport" title="打开一份 .xmind 文件">导入 .xmind</button>
     <button id="btnExport" title="把当前编辑结果导出为新的独立 HTML">导出 HTML</button>
-    <button id="btnImport" title="在浏览器中直接打开另一份 .xmind 文件">导入 .xmind</button>
     <button id="btnReset" title="清除本地编辑，恢复原始内容">重置</button>
     <span class="sep"></span>
     <button id="btnTheme" title="切换深色 / 浅色主题">浅色</button>
@@ -167,13 +200,22 @@
   </div>
 </div>
 <input type="file" id="fileInput" accept=".xmind" style="display:none">
+<div id="welcome">
+  <div class="welcome-card">
+    <div class="welcome-title">xmind2html</div>
+    <div class="welcome-sub">把 .xmind 文件拖到这里，立即变成可编辑的网页脑图<br>支持增删改、拖拽移动、撤销重做、导出分享</div>
+    <button id="btnPick">选择 .xmind 文件</button>
+    <div class="welcome-hint">兼容新版 / 旧版 XMind · 纯浏览器本地解析，文件不会上传</div>
+  </div>
+</div>
+<div id="dropMask">松开鼠标，导入 .xmind</div>
 <footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名，拖拽移动节点 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 「导入 .xmind」直接换图，「导出 HTML」保存成果</footer>
 
 <script id="mindmap-data" type="application/json">{"sheets": [{"title": "画布 1", "root": {"title": "起名流程优化", "children": [{"title": "创建规则", "children": [{"title": "弹窗规则", "children": [{"title": "账号未创建过角色，登录魂斗罗", "children": [{"title": "弹出剧情模式+禁区突围模式2选1弹窗"}, {"title": "屏蔽老玩家选择项正确"}, {"title": "选项的宣传与UI正确"}]}, {"title": "账号已创建过角色，登录魂斗罗", "children": [{"title": "弹出老玩家+剧情模式+禁区突围模式3选1弹窗"}, {"title": "选项的宣传与UI正确"}]}, {"title": "87版新增开服时间限制", "children": [{"title": "开服时间≤7时弹窗屏蔽老玩家选项"}, {"title": "选项的宣传与UI正确"}, {"title": "常量表新增配置正确"}]}]}, {"title": "选项创建", "children": [{"title": "老玩家创建", "children": [{"title": "弹窗提示损失的道具提示弹窗"}, {"title": "点击继续创建进入自动创建流程正确"}, {"title": "点击返回，返回到选择界面正确"}, {"title": "跳过新主线前3章并关闭所有引导"}, {"title": "展示道具与关卡对应道具一致正确"}, {"title": "新主线关卡自动通关前三章正确"}, {"title": "新关卡宝箱变更已领取正确"}, {"title": "等级固定达到17级正确"}]}, {"title": "新玩家创建", "children": [{"title": "进入自动创建流程正确"}, {"title": "进入新关卡引导流程正确"}, {"title": "新玩家礼包邮件发送正确"}]}, {"title": "禁区突围创建", "children": [{"title": "进入自动创建流程正确"}, {"title": "进入禁区突围新手关卡正确"}, {"title": "新玩家礼包邮件发送正确"}]}]}]}, {"title": "自动创建流程", "children": [{"title": "常量新增自动创建开关配置", "children": [{"title": "配置开启", "children": [{"title": "创建账号进入自动创建流程正确"}, {"title": "不再进入建号界面正确"}]}, {"title": "配置关闭", "children": [{"title": "创建账号进入手动创建正确"}, {"title": "自动创建功能关闭正确"}]}]}, {"title": "名称生成", "children": [{"title": "随机名称", "children": [{"title": "自动创建角色随机生成名称正确"}, {"title": "名称不会重复正确"}, {"title": "名称重复率过高使用唯一编码命名"}]}, {"title": "唯一编码", "children": [{"title": "Name表新增随机池"}, {"title": "随机池由字母和数字生成"}]}]}, {"title": "名称校验", "children": [{"title": "敏感校验", "children": [{"title": "随机的名称不会出现敏感字正确"}, {"title": "敏感组词不会出现正确"}]}]}, {"title": "改名卡赠送", "children": [{"title": "老账号登录", "children": [{"title": "新版本登录不会赠送正确"}, {"title": "改名逻辑不变正确"}]}, {"title": "新版本创建登录", "children": [{"title": "自动赠送一张改名卡正确"}, {"title": "改名卡到账正确"}, {"title": "改名逻辑不变正确"}]}]}, {"title": "登录大厅", "children": [{"title": "老玩家创建登录", "children": [{"title": "老剧情跳过互脸弹窗屏蔽正确"}, {"title": "新关卡跳过互脸弹窗展示正确"}, {"title": "不触发新关卡新手引导正确"}]}, {"title": "新玩家创建登录", "children": [{"title": "不会有互脸弹窗正确"}, {"title": "触发新手关卡引导正确"}]}]}, {"title": "其他异常", "children": [{"title": "在点击确认创建前杀进程，重登", "children": [{"title": "重新进入选择创建模式正确"}, {"title": "各模式创建流程正确"}]}, {"title": "在点击确认创建后的过程中杀进程", "children": [{"title": "已完成自动创建正确"}, {"title": "重登进入游戏正确"}, {"title": "进入游戏与选择的创建模式一致正确"}]}, {"title": "在点击确认创建后的过程中断网重连", "children": [{"title": "继续自动创建流程正确"}, {"title": "进入游戏与选择的创建模式一致正确"}]}]}]}]}}]}</script>
 <script>
 (function () {
-  var ORIGINAL_TEXT = document.getElementById('mindmap-data').textContent;
-  var DATA = JSON.parse(ORIGINAL_TEXT);
+  var EMBEDDED_TEXT = document.getElementById('mindmap-data').textContent.trim();
+  var DATA = (EMBEDDED_TEXT && EMBEDDED_TEXT !== 'null') ? JSON.parse(EMBEDDED_TEXT) : null;
   var PALETTES = {
     dark:  ['#5b8cff', '#a78bfa', '#34d399', '#f87171', '#fbbf24', '#22d3ee', '#f472b6', '#a3e635'],
     light: ['#2f6bff', '#8b5cf6', '#22a06b', '#e5484d', '#d97706', '#0891b2', '#db2777', '#65a30d']
@@ -184,6 +226,8 @@
   var canvas = document.getElementById('canvas');
   var foot = document.getElementById('foot');
   var FOOT_TEXT = foot.textContent;
+  var welcome = document.getElementById('welcome');
+  var dropMask = document.getElementById('dropMask');
 
   var currentScale = 1;
   var currentSheet = 0;
@@ -213,6 +257,10 @@
   function assignIds(n) {
     n._id = idSeq++;
     (n.children || []).forEach(assignIds);
+  }
+  function reassignAll() {
+    idSeq = 1;
+    DATA.sheets.forEach(function (s) { assignIds(s.root); });
   }
   function findNode(id, n) {
     n = n || DATA.sheets[currentSheet].root;
@@ -353,7 +401,7 @@
     });
 
     wrap.appendChild(box);
-    if (kids) wrap.appendChild(kids);
+    if (hasKids) wrap.appendChild(kids);
     nodeEls.push(entry);
     return wrap;
   }
@@ -368,6 +416,7 @@
   }
 
   function drawWires() {
+    if (!DATA) return;
     var cRect = canvas.getBoundingClientRect();
     wires.setAttribute('width', canvas.scrollWidth);
     wires.setAttribute('height', canvas.scrollHeight);
@@ -395,10 +444,12 @@
   }
 
   function render() {
+    if (!DATA) return;
     nodeEls = [];
     treeEl.innerHTML = '';
     var sheet = DATA.sheets[currentSheet];
     document.getElementById('docTitle').textContent = sheet.root.title;
+    document.title = sheet.root.title;
     document.getElementById('stats').textContent =
       countNodes(sheet.root) + ' 个节点 · ' + countLeaves(sheet.root) + ' 个叶子节点';
     var legend = document.getElementById('legend');
@@ -479,6 +530,7 @@
   }
 
   function addChild() {
+    if (!DATA) return;
     var sel = findNode(selectedId);
     if (!sel) return;
     pushUndo();
@@ -489,6 +541,7 @@
     afterEdit(nn._id, true);
   }
   function addSibling() {
+    if (!DATA) return;
     var sel = findNode(selectedId);
     if (!sel) return;
     var parent = findParent(selectedId);
@@ -500,6 +553,7 @@
     afterEdit(nn._id, true);
   }
   function deleteNode() {
+    if (!DATA) return;
     var sel = findNode(selectedId);
     if (!sel) return;
     var parent = findParent(selectedId);
@@ -544,6 +598,7 @@
     input.addEventListener('click', function (ev) { ev.stopPropagation(); });
   }
   function editNote() {
+    if (!DATA) return;
     var sel = findNode(selectedId);
     if (!sel) return;
     var v = prompt('编辑备注（留空则清除备注）：', sel.note || '');
@@ -555,7 +610,7 @@
     afterEdit(sel._id, false);
   }
   function undo() {
-    if (!undoStack.length) return;
+    if (!DATA || !undoStack.length) return;
     redoStack.push(JSON.stringify(DATA.sheets[currentSheet].root));
     DATA.sheets[currentSheet].root = JSON.parse(undoStack.pop());
     reassignAll();
@@ -563,20 +618,17 @@
     saveLocal(); markDirty(); render();
   }
   function redo() {
-    if (!redoStack.length) return;
+    if (!DATA || !redoStack.length) return;
     undoStack.push(JSON.stringify(DATA.sheets[currentSheet].root));
     DATA.sheets[currentSheet].root = JSON.parse(redoStack.pop());
     reassignAll();
     selectedId = null;
     saveLocal(); markDirty(); render();
   }
-  function reassignAll() {
-    idSeq = 1;
-    DATA.sheets.forEach(function (s) { assignIds(s.root); });
-  }
 
   // ---------- 导出 / 重置 ----------
   function exportHTML() {
+    if (!DATA) { alert('请先导入一份 .xmind 文件'); return; }
     var json = JSON.stringify(DATA).replace(/<\//g, '<\\/');
     var html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
     html = html.replace(
@@ -594,13 +646,26 @@
     }, 100);
   }
   function resetAll() {
-    if (!confirm('放弃所有本地编辑，恢复为文件原始内容？')) return;
+    if (!DATA) return;
+    if (!confirm('放弃所有本地编辑，恢复为最初导入的内容？')) return;
     try { localStorage.removeItem(storageKey()); } catch (e) {}
-    DATA = JSON.parse(ORIGINAL_TEXT);
+    DATA = (EMBEDDED_TEXT && EMBEDDED_TEXT !== 'null') ? JSON.parse(EMBEDDED_TEXT) : null;
+    if (!DATA) {
+      welcome.classList.remove('hidden');
+      treeEl.innerHTML = '';
+      document.getElementById('docTitle').textContent = 'xmind2html';
+      document.getElementById('stats').textContent = '';
+      document.getElementById('legend').innerHTML = '';
+      document.title = 'xmind2html';
+      foot.textContent = FOOT_TEXT;
+      return;
+    }
     reassignAll();
     collapsed = {};
     undoStack = []; redoStack = [];
     selectedId = null;
+    currentSheet = 0;
+    buildTabs();
     foot.textContent = FOOT_TEXT;
     render();
   }
@@ -619,20 +684,23 @@
 
   // ---------- 工具栏 ----------
   function updateButtons() {
-    var hasSel = selectedId != null && !!findNode(selectedId);
+    var hasSel = DATA && selectedId != null && !!findNode(selectedId);
     document.getElementById('btnChild').disabled = !hasSel;
     document.getElementById('btnSibling').disabled = !hasSel;
     document.getElementById('btnRename').disabled = !hasSel;
     document.getElementById('btnNote').disabled = !hasSel;
     document.getElementById('btnDelete').disabled = !hasSel;
-    document.getElementById('btnUndo').disabled = !undoStack.length;
-    document.getElementById('btnRedo').disabled = !redoStack.length;
+    document.getElementById('btnUndo').disabled = !DATA || !undoStack.length;
+    document.getElementById('btnRedo').disabled = !DATA || !redoStack.length;
+    document.getElementById('btnExport').disabled = !DATA;
+    document.getElementById('btnReset').disabled = !DATA;
   }
   document.getElementById('btnChild').addEventListener('click', addChild);
   document.getElementById('btnSibling').addEventListener('click', addSibling);
   document.getElementById('btnDelete').addEventListener('click', deleteNode);
   document.getElementById('btnNote').addEventListener('click', editNote);
   document.getElementById('btnRename').addEventListener('click', function () {
+    if (!DATA) return;
     var sel = findNode(selectedId);
     if (!sel) return;
     var entry = nodeEls.find(function (e) { return e.node._id === selectedId; });
@@ -644,7 +712,7 @@
   document.getElementById('btnReset').addEventListener('click', resetAll);
 
   document.addEventListener('keydown', function (ev) {
-    if (editing) return;
+    if (editing || !DATA) return;
     var tag = (ev.target && ev.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') {
@@ -675,11 +743,13 @@
   zoomResetBtn.addEventListener('click', function () { setScale(1); });
 
   document.getElementById('expandAll').addEventListener('click', function () {
+    if (!DATA) return;
     collapsed[currentSheet] = {};
     nodeEls.forEach(function (e) { setOpen(e.node, true); });
     render();
   });
   document.getElementById('collapseAll').addEventListener('click', function () {
+    if (!DATA) return;
     collapsed[currentSheet] = {};
     nodeEls.forEach(function (e) { if (e.depth >= 2) setOpen(e.node, false); });
     render();
@@ -807,21 +877,20 @@
     });
   }
 
-  var fileInput = document.getElementById('fileInput');
-  document.getElementById('btnImport').addEventListener('click', function () { fileInput.click(); });
-  fileInput.addEventListener('change', function () {
-    var f = fileInput.files[0];
-    fileInput.value = '';
+  function importFile(f) {
     if (!f) return;
+    if (!/\.xmind$/i.test(f.name)) {
+      alert('请选择 .xmind 文件');
+      return;
+    }
     f.arrayBuffer().then(parseXmindBuffer).then(function (data) {
-      try { localStorage.removeItem(storageKey()); } catch (e) {} // 清理旧图的本地编辑
       DATA = data;
       reassignAll();
       currentSheet = 0;
       selectedId = null;
       undoStack = []; redoStack = [];
       collapsed = {};
-      document.title = DATA.sheets[0].root.title;
+      welcome.classList.add('hidden');
       buildTabs();
       foot.textContent = FOOT_TEXT;
       saveLocal();
@@ -830,33 +899,43 @@
     }).catch(function (e) {
       alert('导入失败：' + e.message);
     });
+  }
+
+  var fileInput = document.getElementById('fileInput');
+  document.getElementById('btnImport').addEventListener('click', function () { fileInput.click(); });
+  document.getElementById('btnPick').addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files[0];
+    fileInput.value = '';
+    importFile(f);
   });
 
-  // ---------- 初始化 ----------
-  // 主题：本地记忆 > 默认深色
-  var savedTheme = null;
-  try { savedTheme = localStorage.getItem('xmind2html:theme'); } catch (e) {}
-  applyTheme(savedTheme === 'light' ? 'light' : 'dark');
+  // 整窗拖拽 .xmind 文件导入
+  function eventHasFile(ev) {
+    var types = ev.dataTransfer && ev.dataTransfer.types;
+    return types && Array.prototype.indexOf.call(types, 'Files') !== -1;
+  }
+  window.addEventListener('dragover', function (ev) {
+    if (!eventHasFile(ev)) return; // 节点拖拽走自己的逻辑
+    ev.preventDefault();
+    dropMask.classList.add('show');
+  });
+  window.addEventListener('dragleave', function (ev) {
+    if (!ev.relatedTarget) dropMask.classList.remove('show');
+  });
+  window.addEventListener('drop', function (ev) {
+    if (!eventHasFile(ev)) return;
+    ev.preventDefault();
+    dropMask.classList.remove('show');
+    var f = ev.dataTransfer.files && ev.dataTransfer.files[0];
+    importFile(f);
+  });
 
-  // 本地编辑恢复
-  try {
-    var saved = localStorage.getItem(storageKey());
-    if (saved) {
-      var parsed = JSON.parse(saved);
-      if (parsed && parsed.sheets) {
-        DATA = parsed;
-        markDirty();
-      }
-    }
-  } catch (e) {}
-
-  reassignAll();
-
-  // 多画布标签
+  // ---------- 多画布标签 ----------
   function buildTabs() {
     var tabs = document.getElementById('tabs');
     tabs.innerHTML = '';
-    if (DATA.sheets.length <= 1) {
+    if (!DATA || DATA.sheets.length <= 1) {
       tabs.style.display = 'none';
       return;
     }
@@ -876,9 +955,42 @@
       tabs.appendChild(b);
     });
   }
-  buildTabs();
 
-  render();
+  // ---------- 初始化 ----------
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem('xmind2html:theme'); } catch (e) {}
+  applyTheme(savedTheme === 'light' ? 'light' : 'dark');
+
+  if (DATA) {
+    // 本地编辑恢复
+    try {
+      var saved = localStorage.getItem(storageKey());
+      if (saved) {
+        var parsed = JSON.parse(saved);
+        if (parsed && parsed.sheets) DATA = parsed;
+      }
+    } catch (e) {}
+    reassignAll();
+    welcome.classList.add('hidden');
+    buildTabs();
+    render();
+  } else {
+    // 应用模式：尝试恢复上次会话
+    try {
+      var last = localStorage.getItem(storageKey());
+      if (last) {
+        var parsedLast = JSON.parse(last);
+        if (parsedLast && parsedLast.sheets) {
+          DATA = parsedLast;
+          reassignAll();
+          welcome.classList.add('hidden');
+          buildTabs();
+          render();
+        }
+      }
+    } catch (e) {}
+  }
+  updateButtons();
 })();
 </script>
 </body>
