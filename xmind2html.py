@@ -28,7 +28,7 @@ import sys
 import zipfile
 import xml.etree.ElementTree as ET
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 # ---------------------------------------------------------------------------
 # 解析
@@ -298,6 +298,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <button id="btnRedo" title="重做（Ctrl+Y）">重做</button>
     <span class="sep"></span>
     <button id="btnExport" title="把当前编辑结果导出为新的独立 HTML">导出 HTML</button>
+    <button id="btnImport" title="在浏览器中直接打开另一份 .xmind 文件">导入 .xmind</button>
     <button id="btnReset" title="清除本地编辑，恢复原始内容">重置</button>
     <span class="sep"></span>
     <button id="btnTheme" title="切换深色 / 浅色主题">浅色</button>
@@ -315,7 +316,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <div id="tree"></div>
   </div>
 </div>
-<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名，拖拽移动节点 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 编辑自动保存在本地，「导出 HTML」生成可分发文件</footer>
+<input type="file" id="fileInput" accept=".xmind" style="display:none">
+<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名，拖拽移动节点 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 「导入 .xmind」直接换图，「导出 HTML」保存成果</footer>
 
 <script id="mindmap-data" type="application/json">/*__DATA__*/</script>
 <script>
@@ -348,7 +350,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     return PALETTES[document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'];
   }
   function storageKey() {
-    return 'xmind2html:' + (DATA.sheets[0].root.title || 'untitled');
+    // 按页面路径区分：同一文件无论加载哪份导图都读写同一键
+    return 'xmind2html:' + location.pathname;
   }
   function countLeaves(n) {
     if (!n.children || !n.children.length) return 1;
@@ -835,6 +838,150 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   window.addEventListener('resize', drawWires);
   window.addEventListener('load', drawWires);
 
+  // ---------- 导入 .xmind（浏览器内解析 zip） ----------
+  function firstChildNamed(el, name) {
+    for (var i = 0; i < el.children.length; i++) {
+      if (el.children[i].localName === name) return el.children[i];
+    }
+    return null;
+  }
+  function topicFromJson(t) {
+    var node = { title: ((t.title || '') + '').trim() || '(未命名)' };
+    if (t.notes && t.notes.plain && (t.notes.plain.content || '').trim()) {
+      node.note = t.notes.plain.content.trim();
+    }
+    var kids = (t.children && t.children.attached || []).map(topicFromJson);
+    if (kids.length) node.children = kids;
+    return node;
+  }
+  function topicFromXml(el) {
+    var titleEl = firstChildNamed(el, 'title');
+    var node = { title: (titleEl ? titleEl.textContent.trim() : '') || '(未命名)' };
+    var notesEl = firstChildNamed(el, 'notes');
+    if (notesEl) {
+      var plainEl = firstChildNamed(notesEl, 'plain');
+      if (plainEl && plainEl.textContent.trim()) node.note = plainEl.textContent.trim();
+    }
+    var kids = [];
+    var childrenEl = firstChildNamed(el, 'children');
+    if (childrenEl) {
+      Array.prototype.forEach.call(childrenEl.children, function (topicsEl) {
+        if (topicsEl.localName !== 'topics') return;
+        var type = topicsEl.getAttribute('type');
+        if (type && type !== 'attached') return;
+        Array.prototype.forEach.call(topicsEl.children, function (t) {
+          if (t.localName === 'topic') kids.push(topicFromXml(t));
+        });
+      });
+    }
+    if (kids.length) node.children = kids;
+    return node;
+  }
+  function parseZipEntries(buf) {
+    var dv = new DataView(buf);
+    var bytes = new Uint8Array(buf);
+    var eocd = -1;
+    for (var i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 65536); i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('不是有效的 .xmind 文件（zip 结构损坏）');
+    var count = dv.getUint16(eocd + 10, true);
+    var p = dv.getUint32(eocd + 16, true);
+    var dec = new TextDecoder('utf-8');
+    var entries = {};
+    for (var n = 0; n < count; n++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      var fnLen = dv.getUint16(p + 28, true);
+      var exLen = dv.getUint16(p + 30, true);
+      var cmLen = dv.getUint16(p + 32, true);
+      var name = dec.decode(bytes.subarray(p + 46, p + 46 + fnLen));
+      entries[name] = {
+        method: dv.getUint16(p + 10, true),
+        csize: dv.getUint32(p + 20, true),
+        lhOff: dv.getUint32(p + 42, true)
+      };
+      p += 46 + fnLen + exLen + cmLen;
+    }
+    return { dv: dv, bytes: bytes, entries: entries };
+  }
+  function readZipEntry(z, name) {
+    var e = z.entries[name];
+    if (!e) return Promise.resolve(null);
+    var fnLen = z.dv.getUint16(e.lhOff + 26, true);
+    var exLen = z.dv.getUint16(e.lhOff + 28, true);
+    var start = e.lhOff + 30 + fnLen + exLen;
+    var raw = z.bytes.subarray(start, start + e.csize);
+    if (e.method === 0) return Promise.resolve(raw);
+    if (e.method === 8) {
+      if (typeof DecompressionStream === 'undefined') {
+        return Promise.reject(new Error('当前浏览器不支持解压，请使用新版 Chrome / Edge'));
+      }
+      var ds = new DecompressionStream('deflate-raw');
+      var stream = new Blob([raw]).stream().pipeThrough(ds);
+      return new Response(stream).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+    }
+    return Promise.reject(new Error('不支持的压缩方式：' + e.method));
+  }
+  function parseXmindBuffer(buf) {
+    var z = parseZipEntries(buf);
+    var dec = new TextDecoder('utf-8');
+    return readZipEntry(z, 'content.json').then(function (cj) {
+      if (cj) {
+        var sheetsRaw = JSON.parse(dec.decode(cj));
+        var sheets = sheetsRaw.map(function (s, i) {
+          return {
+            title: ((s.title || '') + '').trim() || ('画布 ' + (i + 1)),
+            root: topicFromJson(s.rootTopic || {})
+          };
+        });
+        if (!sheets.length) throw new Error('content.json 中没有任何画布');
+        return { sheets: sheets };
+      }
+      return readZipEntry(z, 'content.xml').then(function (cx) {
+        if (!cx) throw new Error('压缩包中未找到 content.json 或 content.xml');
+        var doc = new DOMParser().parseFromString(dec.decode(cx), 'text/xml');
+        var sheets = [];
+        Array.prototype.forEach.call(doc.documentElement.children, function (sheetEl, i) {
+          if (sheetEl.localName !== 'sheet') return;
+          var titleEl = firstChildNamed(sheetEl, 'title');
+          var topicEl = firstChildNamed(sheetEl, 'topic');
+          if (!topicEl) return;
+          sheets.push({
+            title: (titleEl && titleEl.textContent.trim()) || ('画布 ' + (i + 1)),
+            root: topicFromXml(topicEl)
+          });
+        });
+        if (!sheets.length) throw new Error('content.xml 中没有任何画布');
+        return { sheets: sheets };
+      });
+    });
+  }
+
+  var fileInput = document.getElementById('fileInput');
+  document.getElementById('btnImport').addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files[0];
+    fileInput.value = '';
+    if (!f) return;
+    f.arrayBuffer().then(parseXmindBuffer).then(function (data) {
+      try { localStorage.removeItem(storageKey()); } catch (e) {} // 清理旧图的本地编辑
+      DATA = data;
+      reassignAll();
+      currentSheet = 0;
+      selectedId = null;
+      undoStack = []; redoStack = [];
+      collapsed = {};
+      document.title = DATA.sheets[0].root.title;
+      buildTabs();
+      foot.textContent = FOOT_TEXT;
+      saveLocal();
+      render();
+      markDirty();
+    }).catch(function (e) {
+      alert('导入失败：' + e.message);
+    });
+  });
+
   // ---------- 初始化 ----------
   // 主题：本地记忆 > 默认深色
   var savedTheme = null;
@@ -856,13 +1003,18 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   reassignAll();
 
   // 多画布标签
-  if (DATA.sheets.length > 1) {
+  function buildTabs() {
     var tabs = document.getElementById('tabs');
+    tabs.innerHTML = '';
+    if (DATA.sheets.length <= 1) {
+      tabs.style.display = 'none';
+      return;
+    }
     tabs.style.display = '';
     DATA.sheets.forEach(function (sheet, i) {
       var b = document.createElement('button');
       b.textContent = sheet.title;
-      if (i === 0) b.className = 'active';
+      if (i === currentSheet) b.className = 'active';
       b.addEventListener('click', function () {
         tabs.querySelectorAll('button').forEach(function (x) { x.className = ''; });
         b.className = 'active';
@@ -874,6 +1026,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       tabs.appendChild(b);
     });
   }
+  buildTabs();
 
   render();
 })();

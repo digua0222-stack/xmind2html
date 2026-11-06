@@ -148,6 +148,7 @@
     <button id="btnRedo" title="重做（Ctrl+Y）">重做</button>
     <span class="sep"></span>
     <button id="btnExport" title="把当前编辑结果导出为新的独立 HTML">导出 HTML</button>
+    <button id="btnImport" title="在浏览器中直接打开另一份 .xmind 文件">导入 .xmind</button>
     <button id="btnReset" title="清除本地编辑，恢复原始内容">重置</button>
     <span class="sep"></span>
     <button id="btnTheme" title="切换深色 / 浅色主题">浅色</button>
@@ -165,7 +166,8 @@
     <div id="tree"></div>
   </div>
 </div>
-<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名，拖拽移动节点 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 编辑自动保存在本地，「导出 HTML」生成可分发文件</footer>
+<input type="file" id="fileInput" accept=".xmind" style="display:none">
+<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名，拖拽移动节点 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 「导入 .xmind」直接换图，「导出 HTML」保存成果</footer>
 
 <script id="mindmap-data" type="application/json">{"sheets": [{"title": "画布 1", "root": {"title": "起名流程优化", "children": [{"title": "创建规则", "children": [{"title": "弹窗规则", "children": [{"title": "账号未创建过角色，登录魂斗罗", "children": [{"title": "弹出剧情模式+禁区突围模式2选1弹窗"}, {"title": "屏蔽老玩家选择项正确"}, {"title": "选项的宣传与UI正确"}]}, {"title": "账号已创建过角色，登录魂斗罗", "children": [{"title": "弹出老玩家+剧情模式+禁区突围模式3选1弹窗"}, {"title": "选项的宣传与UI正确"}]}, {"title": "87版新增开服时间限制", "children": [{"title": "开服时间≤7时弹窗屏蔽老玩家选项"}, {"title": "选项的宣传与UI正确"}, {"title": "常量表新增配置正确"}]}]}, {"title": "选项创建", "children": [{"title": "老玩家创建", "children": [{"title": "弹窗提示损失的道具提示弹窗"}, {"title": "点击继续创建进入自动创建流程正确"}, {"title": "点击返回，返回到选择界面正确"}, {"title": "跳过新主线前3章并关闭所有引导"}, {"title": "展示道具与关卡对应道具一致正确"}, {"title": "新主线关卡自动通关前三章正确"}, {"title": "新关卡宝箱变更已领取正确"}, {"title": "等级固定达到17级正确"}]}, {"title": "新玩家创建", "children": [{"title": "进入自动创建流程正确"}, {"title": "进入新关卡引导流程正确"}, {"title": "新玩家礼包邮件发送正确"}]}, {"title": "禁区突围创建", "children": [{"title": "进入自动创建流程正确"}, {"title": "进入禁区突围新手关卡正确"}, {"title": "新玩家礼包邮件发送正确"}]}]}]}, {"title": "自动创建流程", "children": [{"title": "常量新增自动创建开关配置", "children": [{"title": "配置开启", "children": [{"title": "创建账号进入自动创建流程正确"}, {"title": "不再进入建号界面正确"}]}, {"title": "配置关闭", "children": [{"title": "创建账号进入手动创建正确"}, {"title": "自动创建功能关闭正确"}]}]}, {"title": "名称生成", "children": [{"title": "随机名称", "children": [{"title": "自动创建角色随机生成名称正确"}, {"title": "名称不会重复正确"}, {"title": "名称重复率过高使用唯一编码命名"}]}, {"title": "唯一编码", "children": [{"title": "Name表新增随机池"}, {"title": "随机池由字母和数字生成"}]}]}, {"title": "名称校验", "children": [{"title": "敏感校验", "children": [{"title": "随机的名称不会出现敏感字正确"}, {"title": "敏感组词不会出现正确"}]}]}, {"title": "改名卡赠送", "children": [{"title": "老账号登录", "children": [{"title": "新版本登录不会赠送正确"}, {"title": "改名逻辑不变正确"}]}, {"title": "新版本创建登录", "children": [{"title": "自动赠送一张改名卡正确"}, {"title": "改名卡到账正确"}, {"title": "改名逻辑不变正确"}]}]}, {"title": "登录大厅", "children": [{"title": "老玩家创建登录", "children": [{"title": "老剧情跳过互脸弹窗屏蔽正确"}, {"title": "新关卡跳过互脸弹窗展示正确"}, {"title": "不触发新关卡新手引导正确"}]}, {"title": "新玩家创建登录", "children": [{"title": "不会有互脸弹窗正确"}, {"title": "触发新手关卡引导正确"}]}]}, {"title": "其他异常", "children": [{"title": "在点击确认创建前杀进程，重登", "children": [{"title": "重新进入选择创建模式正确"}, {"title": "各模式创建流程正确"}]}, {"title": "在点击确认创建后的过程中杀进程", "children": [{"title": "已完成自动创建正确"}, {"title": "重登进入游戏正确"}, {"title": "进入游戏与选择的创建模式一致正确"}]}, {"title": "在点击确认创建后的过程中断网重连", "children": [{"title": "继续自动创建流程正确"}, {"title": "进入游戏与选择的创建模式一致正确"}]}]}]}]}}]}</script>
 <script>
@@ -198,7 +200,8 @@
     return PALETTES[document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'];
   }
   function storageKey() {
-    return 'xmind2html:' + (DATA.sheets[0].root.title || 'untitled');
+    // 按页面路径区分：同一文件无论加载哪份导图都读写同一键
+    return 'xmind2html:' + location.pathname;
   }
   function countLeaves(n) {
     if (!n.children || !n.children.length) return 1;
@@ -685,6 +688,150 @@
   window.addEventListener('resize', drawWires);
   window.addEventListener('load', drawWires);
 
+  // ---------- 导入 .xmind（浏览器内解析 zip） ----------
+  function firstChildNamed(el, name) {
+    for (var i = 0; i < el.children.length; i++) {
+      if (el.children[i].localName === name) return el.children[i];
+    }
+    return null;
+  }
+  function topicFromJson(t) {
+    var node = { title: ((t.title || '') + '').trim() || '(未命名)' };
+    if (t.notes && t.notes.plain && (t.notes.plain.content || '').trim()) {
+      node.note = t.notes.plain.content.trim();
+    }
+    var kids = (t.children && t.children.attached || []).map(topicFromJson);
+    if (kids.length) node.children = kids;
+    return node;
+  }
+  function topicFromXml(el) {
+    var titleEl = firstChildNamed(el, 'title');
+    var node = { title: (titleEl ? titleEl.textContent.trim() : '') || '(未命名)' };
+    var notesEl = firstChildNamed(el, 'notes');
+    if (notesEl) {
+      var plainEl = firstChildNamed(notesEl, 'plain');
+      if (plainEl && plainEl.textContent.trim()) node.note = plainEl.textContent.trim();
+    }
+    var kids = [];
+    var childrenEl = firstChildNamed(el, 'children');
+    if (childrenEl) {
+      Array.prototype.forEach.call(childrenEl.children, function (topicsEl) {
+        if (topicsEl.localName !== 'topics') return;
+        var type = topicsEl.getAttribute('type');
+        if (type && type !== 'attached') return;
+        Array.prototype.forEach.call(topicsEl.children, function (t) {
+          if (t.localName === 'topic') kids.push(topicFromXml(t));
+        });
+      });
+    }
+    if (kids.length) node.children = kids;
+    return node;
+  }
+  function parseZipEntries(buf) {
+    var dv = new DataView(buf);
+    var bytes = new Uint8Array(buf);
+    var eocd = -1;
+    for (var i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 65536); i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('不是有效的 .xmind 文件（zip 结构损坏）');
+    var count = dv.getUint16(eocd + 10, true);
+    var p = dv.getUint32(eocd + 16, true);
+    var dec = new TextDecoder('utf-8');
+    var entries = {};
+    for (var n = 0; n < count; n++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      var fnLen = dv.getUint16(p + 28, true);
+      var exLen = dv.getUint16(p + 30, true);
+      var cmLen = dv.getUint16(p + 32, true);
+      var name = dec.decode(bytes.subarray(p + 46, p + 46 + fnLen));
+      entries[name] = {
+        method: dv.getUint16(p + 10, true),
+        csize: dv.getUint32(p + 20, true),
+        lhOff: dv.getUint32(p + 42, true)
+      };
+      p += 46 + fnLen + exLen + cmLen;
+    }
+    return { dv: dv, bytes: bytes, entries: entries };
+  }
+  function readZipEntry(z, name) {
+    var e = z.entries[name];
+    if (!e) return Promise.resolve(null);
+    var fnLen = z.dv.getUint16(e.lhOff + 26, true);
+    var exLen = z.dv.getUint16(e.lhOff + 28, true);
+    var start = e.lhOff + 30 + fnLen + exLen;
+    var raw = z.bytes.subarray(start, start + e.csize);
+    if (e.method === 0) return Promise.resolve(raw);
+    if (e.method === 8) {
+      if (typeof DecompressionStream === 'undefined') {
+        return Promise.reject(new Error('当前浏览器不支持解压，请使用新版 Chrome / Edge'));
+      }
+      var ds = new DecompressionStream('deflate-raw');
+      var stream = new Blob([raw]).stream().pipeThrough(ds);
+      return new Response(stream).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+    }
+    return Promise.reject(new Error('不支持的压缩方式：' + e.method));
+  }
+  function parseXmindBuffer(buf) {
+    var z = parseZipEntries(buf);
+    var dec = new TextDecoder('utf-8');
+    return readZipEntry(z, 'content.json').then(function (cj) {
+      if (cj) {
+        var sheetsRaw = JSON.parse(dec.decode(cj));
+        var sheets = sheetsRaw.map(function (s, i) {
+          return {
+            title: ((s.title || '') + '').trim() || ('画布 ' + (i + 1)),
+            root: topicFromJson(s.rootTopic || {})
+          };
+        });
+        if (!sheets.length) throw new Error('content.json 中没有任何画布');
+        return { sheets: sheets };
+      }
+      return readZipEntry(z, 'content.xml').then(function (cx) {
+        if (!cx) throw new Error('压缩包中未找到 content.json 或 content.xml');
+        var doc = new DOMParser().parseFromString(dec.decode(cx), 'text/xml');
+        var sheets = [];
+        Array.prototype.forEach.call(doc.documentElement.children, function (sheetEl, i) {
+          if (sheetEl.localName !== 'sheet') return;
+          var titleEl = firstChildNamed(sheetEl, 'title');
+          var topicEl = firstChildNamed(sheetEl, 'topic');
+          if (!topicEl) return;
+          sheets.push({
+            title: (titleEl && titleEl.textContent.trim()) || ('画布 ' + (i + 1)),
+            root: topicFromXml(topicEl)
+          });
+        });
+        if (!sheets.length) throw new Error('content.xml 中没有任何画布');
+        return { sheets: sheets };
+      });
+    });
+  }
+
+  var fileInput = document.getElementById('fileInput');
+  document.getElementById('btnImport').addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files[0];
+    fileInput.value = '';
+    if (!f) return;
+    f.arrayBuffer().then(parseXmindBuffer).then(function (data) {
+      try { localStorage.removeItem(storageKey()); } catch (e) {} // 清理旧图的本地编辑
+      DATA = data;
+      reassignAll();
+      currentSheet = 0;
+      selectedId = null;
+      undoStack = []; redoStack = [];
+      collapsed = {};
+      document.title = DATA.sheets[0].root.title;
+      buildTabs();
+      foot.textContent = FOOT_TEXT;
+      saveLocal();
+      render();
+      markDirty();
+    }).catch(function (e) {
+      alert('导入失败：' + e.message);
+    });
+  });
+
   // ---------- 初始化 ----------
   // 主题：本地记忆 > 默认深色
   var savedTheme = null;
@@ -706,13 +853,18 @@
   reassignAll();
 
   // 多画布标签
-  if (DATA.sheets.length > 1) {
+  function buildTabs() {
     var tabs = document.getElementById('tabs');
+    tabs.innerHTML = '';
+    if (DATA.sheets.length <= 1) {
+      tabs.style.display = 'none';
+      return;
+    }
     tabs.style.display = '';
     DATA.sheets.forEach(function (sheet, i) {
       var b = document.createElement('button');
       b.textContent = sheet.title;
-      if (i === 0) b.className = 'active';
+      if (i === currentSheet) b.className = 'active';
       b.addEventListener('click', function () {
         tabs.querySelectorAll('button').forEach(function (x) { x.className = ''; });
         b.className = 'active';
@@ -724,6 +876,7 @@
       tabs.appendChild(b);
     });
   }
+  buildTabs();
 
   render();
 })();
