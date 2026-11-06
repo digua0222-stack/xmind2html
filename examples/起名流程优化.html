@@ -89,6 +89,11 @@
   }
   .box:hover { background: var(--c-hover); }
   .box.selected { outline: 2px solid var(--c-sel); outline-offset: 1px; }
+  .box[draggable="true"] { cursor: grab; }
+  .box.dragging { opacity: .45; }
+  .box.drop-child { outline: 2px dashed var(--c-sel); outline-offset: 2px; }
+  .box.drop-before { box-shadow: 0 -3px 0 0 var(--c-sel); }
+  .box.drop-after { box-shadow: 0 3px 0 0 var(--c-sel); }
 
   .depth-0 > .box {
     background: var(--c-root-bg); border-color: var(--c-root-bg);
@@ -160,7 +165,7 @@
     <div id="tree"></div>
   </div>
 </div>
-<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 编辑自动保存在本地，「导出 HTML」生成可分发文件</footer>
+<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名，拖拽移动节点 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 编辑自动保存在本地，「导出 HTML」生成可分发文件</footer>
 
 <script id="mindmap-data" type="application/json">{"sheets": [{"title": "画布 1", "root": {"title": "起名流程优化", "children": [{"title": "创建规则", "children": [{"title": "弹窗规则", "children": [{"title": "账号未创建过角色，登录魂斗罗", "children": [{"title": "弹出剧情模式+禁区突围模式2选1弹窗"}, {"title": "屏蔽老玩家选择项正确"}, {"title": "选项的宣传与UI正确"}]}, {"title": "账号已创建过角色，登录魂斗罗", "children": [{"title": "弹出老玩家+剧情模式+禁区突围模式3选1弹窗"}, {"title": "选项的宣传与UI正确"}]}, {"title": "87版新增开服时间限制", "children": [{"title": "开服时间≤7时弹窗屏蔽老玩家选项"}, {"title": "选项的宣传与UI正确"}, {"title": "常量表新增配置正确"}]}]}, {"title": "选项创建", "children": [{"title": "老玩家创建", "children": [{"title": "弹窗提示损失的道具提示弹窗"}, {"title": "点击继续创建进入自动创建流程正确"}, {"title": "点击返回，返回到选择界面正确"}, {"title": "跳过新主线前3章并关闭所有引导"}, {"title": "展示道具与关卡对应道具一致正确"}, {"title": "新主线关卡自动通关前三章正确"}, {"title": "新关卡宝箱变更已领取正确"}, {"title": "等级固定达到17级正确"}]}, {"title": "新玩家创建", "children": [{"title": "进入自动创建流程正确"}, {"title": "进入新关卡引导流程正确"}, {"title": "新玩家礼包邮件发送正确"}]}, {"title": "禁区突围创建", "children": [{"title": "进入自动创建流程正确"}, {"title": "进入禁区突围新手关卡正确"}, {"title": "新玩家礼包邮件发送正确"}]}]}]}, {"title": "自动创建流程", "children": [{"title": "常量新增自动创建开关配置", "children": [{"title": "配置开启", "children": [{"title": "创建账号进入自动创建流程正确"}, {"title": "不再进入建号界面正确"}]}, {"title": "配置关闭", "children": [{"title": "创建账号进入手动创建正确"}, {"title": "自动创建功能关闭正确"}]}]}, {"title": "名称生成", "children": [{"title": "随机名称", "children": [{"title": "自动创建角色随机生成名称正确"}, {"title": "名称不会重复正确"}, {"title": "名称重复率过高使用唯一编码命名"}]}, {"title": "唯一编码", "children": [{"title": "Name表新增随机池"}, {"title": "随机池由字母和数字生成"}]}]}, {"title": "名称校验", "children": [{"title": "敏感校验", "children": [{"title": "随机的名称不会出现敏感字正确"}, {"title": "敏感组词不会出现正确"}]}]}, {"title": "改名卡赠送", "children": [{"title": "老账号登录", "children": [{"title": "新版本登录不会赠送正确"}, {"title": "改名逻辑不变正确"}]}, {"title": "新版本创建登录", "children": [{"title": "自动赠送一张改名卡正确"}, {"title": "改名卡到账正确"}, {"title": "改名逻辑不变正确"}]}]}, {"title": "登录大厅", "children": [{"title": "老玩家创建登录", "children": [{"title": "老剧情跳过互脸弹窗屏蔽正确"}, {"title": "新关卡跳过互脸弹窗展示正确"}, {"title": "不触发新关卡新手引导正确"}]}, {"title": "新玩家创建登录", "children": [{"title": "不会有互脸弹窗正确"}, {"title": "触发新手关卡引导正确"}]}]}, {"title": "其他异常", "children": [{"title": "在点击确认创建前杀进程，重登", "children": [{"title": "重新进入选择创建模式正确"}, {"title": "各模式创建流程正确"}]}, {"title": "在点击确认创建后的过程中杀进程", "children": [{"title": "已完成自动创建正确"}, {"title": "重登进入游戏正确"}, {"title": "进入游戏与选择的创建模式一致正确"}]}, {"title": "在点击确认创建后的过程中断网重连", "children": [{"title": "继续自动创建流程正确"}, {"title": "进入游戏与选择的创建模式一致正确"}]}]}]}]}}]}</script>
 <script>
@@ -186,6 +191,7 @@
   var undoStack = [], redoStack = [];
   var collapsed = {};      // sheetIdx -> { nodeId: true=展开 / false=收起 }，覆盖默认（depth<2 展开）
   var editing = false;     // 正在重命名
+  var dragId = null;       // 正在拖拽的节点 id
 
   // ---------- 工具 ----------
   function palette() {
@@ -309,6 +315,40 @@
       startRename(node, box);
     });
 
+    // 拖拽移动（根节点不可拖动；拖到目标上 1/4 区域 = 前/后同级，中间 = 成为子节点）
+    if (depth > 0) box.draggable = true;
+    box.addEventListener('dragstart', function (ev) {
+      if (editing || depth === 0) { ev.preventDefault(); return; }
+      dragId = node._id;
+      ev.dataTransfer.effectAllowed = 'move';
+      try { ev.dataTransfer.setData('text/plain', String(node._id)); } catch (e) {}
+      box.classList.add('dragging');
+    });
+    box.addEventListener('dragover', function (ev) {
+      if (dragId == null || dragId === node._id) return;
+      if (findNode(node._id, findNode(dragId))) return; // 不能拖入自己的子树
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+      clearDropMarks();
+      var zone = dropZone(box, ev.clientY, node);
+      box.classList.add(zone === 'child' ? 'drop-child' : zone === 'before' ? 'drop-before' : 'drop-after');
+    });
+    box.addEventListener('dragleave', function () {
+      box.classList.remove('drop-child', 'drop-before', 'drop-after');
+    });
+    box.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var zone = dropZone(box, ev.clientY, node);
+      clearDropMarks();
+      if (dragId != null) moveNode(dragId, node, zone);
+      dragId = null;
+    });
+    box.addEventListener('dragend', function () {
+      dragId = null;
+      clearDropMarks();
+    });
+
     wrap.appendChild(box);
     if (kids) wrap.appendChild(kids);
     nodeEls.push(entry);
@@ -382,6 +422,41 @@
     updateButtons();
   }
 
+  // ---------- 拖拽移动 ----------
+  function clearDropMarks() {
+    treeEl.querySelectorAll('.drop-child,.drop-before,.drop-after,.dragging').forEach(function (b) {
+      b.classList.remove('drop-child', 'drop-before', 'drop-after', 'dragging');
+    });
+  }
+  function dropZone(box, clientY, targetNode) {
+    var parent = findParent(targetNode._id);
+    if (!parent) return 'child'; // 根节点只能作为父级接收
+    var rect = box.getBoundingClientRect();
+    var ratio = (clientY - rect.top) / rect.height;
+    if (ratio < 0.25) return 'before';
+    if (ratio > 0.75) return 'after';
+    return 'child';
+  }
+  function moveNode(srcId, targetNode, zone) {
+    if (srcId === targetNode._id) return;
+    var src = findNode(srcId);
+    var oldParent = findParent(srcId);
+    if (!src || !oldParent) return;
+    if (findNode(targetNode._id, src)) return; // 目标在源子树内
+    pushUndo();
+    oldParent.children = oldParent.children.filter(function (c) { return c._id !== srcId; });
+    var newParent = zone === 'child' ? null : findParent(targetNode._id);
+    if (zone === 'child' || !newParent) {
+      targetNode.children = targetNode.children || [];
+      targetNode.children.push(src);
+      setOpen(targetNode, true);
+    } else {
+      var idx = newParent.children.findIndex(function (c) { return c._id === targetNode._id; });
+      newParent.children.splice(zone === 'before' ? idx : idx + 1, 0, src);
+    }
+    afterEdit(srcId, false);
+  }
+
   // ---------- 编辑操作 ----------
   function pushUndo() {
     undoStack.push(JSON.stringify(DATA.sheets[currentSheet].root));
@@ -435,6 +510,7 @@
   function startRename(node, box) {
     if (editing) return;
     editing = true;
+    box.draggable = false;
     var span = box.querySelector('.t');
     var input = document.createElement('input');
     input.className = 'rename-input';

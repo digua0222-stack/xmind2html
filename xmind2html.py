@@ -28,7 +28,7 @@ import sys
 import zipfile
 import xml.etree.ElementTree as ET
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # ---------------------------------------------------------------------------
 # 解析
@@ -239,6 +239,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   .box:hover { background: var(--c-hover); }
   .box.selected { outline: 2px solid var(--c-sel); outline-offset: 1px; }
+  .box[draggable="true"] { cursor: grab; }
+  .box.dragging { opacity: .45; }
+  .box.drop-child { outline: 2px dashed var(--c-sel); outline-offset: 2px; }
+  .box.drop-before { box-shadow: 0 -3px 0 0 var(--c-sel); }
+  .box.drop-after { box-shadow: 0 3px 0 0 var(--c-sel); }
 
   .depth-0 > .box {
     background: var(--c-root-bg); border-color: var(--c-root-bg);
@@ -310,7 +315,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <div id="tree"></div>
   </div>
 </div>
-<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 编辑自动保存在本地，「导出 HTML」生成可分发文件</footer>
+<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名，拖拽移动节点 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 编辑自动保存在本地，「导出 HTML」生成可分发文件</footer>
 
 <script id="mindmap-data" type="application/json">/*__DATA__*/</script>
 <script>
@@ -336,6 +341,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   var undoStack = [], redoStack = [];
   var collapsed = {};      // sheetIdx -> { nodeId: true=展开 / false=收起 }，覆盖默认（depth<2 展开）
   var editing = false;     // 正在重命名
+  var dragId = null;       // 正在拖拽的节点 id
 
   // ---------- 工具 ----------
   function palette() {
@@ -459,6 +465,40 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       startRename(node, box);
     });
 
+    // 拖拽移动（根节点不可拖动；拖到目标上 1/4 区域 = 前/后同级，中间 = 成为子节点）
+    if (depth > 0) box.draggable = true;
+    box.addEventListener('dragstart', function (ev) {
+      if (editing || depth === 0) { ev.preventDefault(); return; }
+      dragId = node._id;
+      ev.dataTransfer.effectAllowed = 'move';
+      try { ev.dataTransfer.setData('text/plain', String(node._id)); } catch (e) {}
+      box.classList.add('dragging');
+    });
+    box.addEventListener('dragover', function (ev) {
+      if (dragId == null || dragId === node._id) return;
+      if (findNode(node._id, findNode(dragId))) return; // 不能拖入自己的子树
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+      clearDropMarks();
+      var zone = dropZone(box, ev.clientY, node);
+      box.classList.add(zone === 'child' ? 'drop-child' : zone === 'before' ? 'drop-before' : 'drop-after');
+    });
+    box.addEventListener('dragleave', function () {
+      box.classList.remove('drop-child', 'drop-before', 'drop-after');
+    });
+    box.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var zone = dropZone(box, ev.clientY, node);
+      clearDropMarks();
+      if (dragId != null) moveNode(dragId, node, zone);
+      dragId = null;
+    });
+    box.addEventListener('dragend', function () {
+      dragId = null;
+      clearDropMarks();
+    });
+
     wrap.appendChild(box);
     if (kids) wrap.appendChild(kids);
     nodeEls.push(entry);
@@ -532,6 +572,41 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     updateButtons();
   }
 
+  // ---------- 拖拽移动 ----------
+  function clearDropMarks() {
+    treeEl.querySelectorAll('.drop-child,.drop-before,.drop-after,.dragging').forEach(function (b) {
+      b.classList.remove('drop-child', 'drop-before', 'drop-after', 'dragging');
+    });
+  }
+  function dropZone(box, clientY, targetNode) {
+    var parent = findParent(targetNode._id);
+    if (!parent) return 'child'; // 根节点只能作为父级接收
+    var rect = box.getBoundingClientRect();
+    var ratio = (clientY - rect.top) / rect.height;
+    if (ratio < 0.25) return 'before';
+    if (ratio > 0.75) return 'after';
+    return 'child';
+  }
+  function moveNode(srcId, targetNode, zone) {
+    if (srcId === targetNode._id) return;
+    var src = findNode(srcId);
+    var oldParent = findParent(srcId);
+    if (!src || !oldParent) return;
+    if (findNode(targetNode._id, src)) return; // 目标在源子树内
+    pushUndo();
+    oldParent.children = oldParent.children.filter(function (c) { return c._id !== srcId; });
+    var newParent = zone === 'child' ? null : findParent(targetNode._id);
+    if (zone === 'child' || !newParent) {
+      targetNode.children = targetNode.children || [];
+      targetNode.children.push(src);
+      setOpen(targetNode, true);
+    } else {
+      var idx = newParent.children.findIndex(function (c) { return c._id === targetNode._id; });
+      newParent.children.splice(zone === 'before' ? idx : idx + 1, 0, src);
+    }
+    afterEdit(srcId, false);
+  }
+
   // ---------- 编辑操作 ----------
   function pushUndo() {
     undoStack.push(JSON.stringify(DATA.sheets[currentSheet].root));
@@ -585,6 +660,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   function startRename(node, box) {
     if (editing) return;
     editing = true;
+    box.draggable = false;
     var span = box.querySelector('.t');
     var input = document.createElement('input');
     input.className = 'rename-input';
