@@ -7,7 +7,12 @@ xmind2html — 将 .xmind 思维导图转换为独立可交互的 HTML 页面
 - 纯 Python 标准库实现，零第三方依赖
 - 同时支持新版（content.json）与旧版（content.xml）XMind 文件格式
 - 多画布（sheet）自动转为标签页切换
-- 生成的 HTML 为单文件、无外部依赖：XMind 风格横向脑图、节点折叠、缩放、测试点/叶子统计
+- 生成的 HTML 为单文件、无外部依赖：
+  · XMind 风格横向脑图、分支自动配色、节点折叠、缩放
+  · 深色主题默认，可切换浅色
+  · 节点增删改：添加子节点 / 同级、重命名、编辑备注、删除
+  · XMind 式快捷键（Tab / Enter / Delete / F2）、撤销 / 重做
+  · 编辑自动保存到浏览器本地，可一键导出为新的独立 HTML
 - 节点备注（notes）以悬浮提示展示
 
 用法：
@@ -23,7 +28,7 @@ import sys
 import zipfile
 import xml.etree.ElementTree as ET
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # ---------------------------------------------------------------------------
 # 解析
@@ -144,19 +149,41 @@ def count_stats(root):
 # ---------------------------------------------------------------------------
 
 HTML_TEMPLATE = r"""<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>__DOC_TITLE__</title>
 <style>
   :root {
-    --c-root: #1f2329;
+    --c-bg: #16171b;
+    --c-header: #1c1d23;
+    --c-border: #30323a;
+    --c-text: #e8e9ec;
+    --c-sub: #9aa0aa;
+    --c-box: #22242b;
+    --c-box-border: #3a3d46;
+    --c-hover: #2c2e36;
+    --c-root-bg: #eceef3;
+    --c-root-text: #1a1b1e;
+    --c-sel: #5b8cff;
+    --c-input-bg: #16171b;
+    color-scheme: dark;
+  }
+  html[data-theme="light"] {
+    --c-bg: #ffffff;
+    --c-header: #ffffff;
+    --c-border: #dee0e3;
     --c-text: #1f2329;
     --c-sub: #646a73;
-    --c-border: #dee0e3;
+    --c-box: #ffffff;
+    --c-box-border: #dee0e3;
     --c-hover: #f2f3f5;
-    --c-bg: #ffffff;
+    --c-root-bg: #1f2329;
+    --c-root-text: #ffffff;
+    --c-sel: #2f6bff;
+    --c-input-bg: #ffffff;
+    color-scheme: light;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
@@ -166,29 +193,32 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     overflow: hidden; display: flex; flex-direction: column;
   }
   header {
-    flex: none; display: flex; align-items: center; gap: 16px;
-    padding: 12px 20px; border-bottom: 1px solid #e5e6eb; flex-wrap: wrap;
+    flex: none; display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-bottom: 1px solid var(--c-border);
+    background: var(--c-header); flex-wrap: wrap;
   }
-  header h1 { font-size: 18px; font-weight: 600; }
-  .stats { font-size: 13px; color: var(--c-sub); }
-  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--c-sub); flex-wrap: wrap; }
-  .legend .item { display: inline-flex; align-items: center; gap: 6px; }
+  header h1 { font-size: 17px; font-weight: 600; }
+  .stats { font-size: 12px; color: var(--c-sub); }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--c-sub); flex-wrap: wrap; }
+  .legend .item { display: inline-flex; align-items: center; gap: 5px; }
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
   .spacer { flex: 1; }
-  .btns { display: flex; gap: 8px; }
+  .btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .btns button {
-    font: inherit; font-size: 13px; padding: 5px 14px;
-    border: 1px solid var(--c-border); border-radius: 6px; background: #fff;
-    color: var(--c-text); cursor: pointer;
+    font: inherit; font-size: 12px; padding: 4px 10px;
+    border: 1px solid var(--c-border); border-radius: 6px;
+    background: var(--c-box); color: var(--c-text); cursor: pointer;
   }
-  .btns button:hover { background: var(--c-hover); }
+  .btns button:hover:not(:disabled) { background: var(--c-hover); }
+  .btns button:disabled { opacity: .4; cursor: default; }
+  .btns .sep { width: 1px; background: var(--c-border); margin: 2px 2px; }
 
-  .tabs { flex: none; display: flex; gap: 4px; padding: 6px 20px 0; border-bottom: 1px solid #e5e6eb; }
+  .tabs { flex: none; display: flex; gap: 4px; padding: 6px 16px 0; border-bottom: 1px solid var(--c-border); background: var(--c-header); }
   .tabs button {
     font: inherit; font-size: 13px; padding: 6px 14px; border: none; background: none;
     color: var(--c-sub); cursor: pointer; border-bottom: 2px solid transparent;
   }
-  .tabs button.active { color: var(--c-text); font-weight: 600; border-bottom-color: var(--c-root); }
+  .tabs button.active { color: var(--c-text); font-weight: 600; border-bottom-color: var(--c-sel); }
 
   #viewport { flex: 1; overflow: auto; position: relative; }
   #canvas { position: relative; display: inline-block; padding: 40px 60px; transform-origin: 0 0; }
@@ -204,35 +234,45 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     flex: none; display: inline-flex; align-items: center; gap: 6px;
     margin: 5px 0; padding: 6px 12px;
     font-size: 13px; line-height: 20px; white-space: nowrap;
-    background: #fff; border: 1px solid var(--c-border); border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(31,35,41,.04);
+    background: var(--c-box); border: 1px solid var(--c-box-border); border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.15); cursor: pointer; user-select: none;
   }
-  .box.parent { cursor: pointer; }
-  .box.parent:hover { background: var(--c-hover); }
-  .box.noteflag::after { content: ""; }
+  .box:hover { background: var(--c-hover); }
+  .box.selected { outline: 2px solid var(--c-sel); outline-offset: 1px; }
 
   .depth-0 > .box {
-    background: var(--c-root); border-color: var(--c-root);
-    color: #fff; font-size: 17px; font-weight: 600;
+    background: var(--c-root-bg); border-color: var(--c-root-bg);
+    color: var(--c-root-text); font-size: 17px; font-weight: 600;
     padding: 10px 20px; border-radius: 10px;
   }
   .depth-1 > .box { font-size: 14px; font-weight: 600; color: #fff; }
   .depth-2 > .box { font-weight: 500; }
-  .node.leaf > .box { color: var(--c-sub); }
+  .node.leaf > .box .t { color: var(--c-sub); }
+  .node.leaf > .box.selected .t { color: var(--c-text); }
 
   .toggle {
     flex: none; width: 16px; height: 16px; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 12px; line-height: 1; font-weight: 600;
-    background: rgba(0,0,0,.06); color: var(--c-sub); user-select: none;
+    background: rgba(127,127,127,.18); color: var(--c-sub);
   }
-  .depth-0 > .box .toggle, .depth-1 > .box .toggle { background: rgba(255,255,255,.25); color: #fff; }
-  .count { font-size: 11px; color: #8f959e; font-weight: 400; }
-  .depth-0 > .box .count, .depth-1 > .box .count { color: rgba(255,255,255,.85); }
-  .note-flag { font-size: 11px; color: #b8800b; }
+  .toggle:hover { background: rgba(127,127,127,.35); color: var(--c-text); }
+  .depth-0 > .box .toggle { background: rgba(0,0,0,.12); color: var(--c-root-text); }
+  .depth-1 > .box .toggle { background: rgba(255,255,255,.25); color: #fff; }
+  .count { font-size: 11px; color: var(--c-sub); font-weight: 400; }
+  .depth-0 > .box .count { color: var(--c-root-text); opacity: .7; }
+  .depth-1 > .box .count { color: rgba(255,255,255,.85); }
+  .note-flag { font-size: 11px; color: #e5a50a; }
+
+  .rename-input {
+    font: inherit; font-size: 13px; color: var(--c-text);
+    background: var(--c-input-bg); border: 1px solid var(--c-sel);
+    border-radius: 4px; padding: 1px 6px; outline: none; min-width: 120px;
+  }
 
   footer {
-    flex: none; padding: 8px 20px; font-size: 12px; color: #8f959e; border-top: 1px solid #e5e6eb;
+    flex: none; padding: 7px 16px; font-size: 12px; color: var(--c-sub);
+    border-top: 1px solid var(--c-border); background: var(--c-header);
   }
 </style>
 </head>
@@ -243,6 +283,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <span class="legend" id="legend"></span>
   <span class="spacer"></span>
   <div class="btns">
+    <button id="btnChild" title="为选中节点添加子节点（Tab）">+ 子节点</button>
+    <button id="btnSibling" title="为选中节点添加同级节点（Enter）">+ 同级</button>
+    <button id="btnRename" title="重命名选中节点（F2 / 双击）">重命名</button>
+    <button id="btnNote" title="编辑选中节点备注">备注</button>
+    <button id="btnDelete" title="删除选中节点（Delete）">删除</button>
+    <span class="sep"></span>
+    <button id="btnUndo" title="撤销（Ctrl+Z）">撤销</button>
+    <button id="btnRedo" title="重做（Ctrl+Y）">重做</button>
+    <span class="sep"></span>
+    <button id="btnExport" title="把当前编辑结果导出为新的独立 HTML">导出 HTML</button>
+    <button id="btnReset" title="清除本地编辑，恢复原始内容">重置</button>
+    <span class="sep"></span>
+    <button id="btnTheme" title="切换深色 / 浅色主题">浅色</button>
     <button id="zoomOut" title="缩小">－</button>
     <button id="zoomReset" title="重置缩放">100%</button>
     <button id="zoomIn" title="放大">＋</button>
@@ -257,20 +310,40 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <div id="tree"></div>
   </div>
 </div>
-<footer>由 xmind2html 生成 · 点击节点展开 / 收起分支 · 带 ¶ 的节点有备注（悬浮查看）· 右上角可缩放</footer>
+<footer id="foot">由 xmind2html 生成 · 单击选中，双击重命名 · Tab 加子节点 / Enter 加同级 / Delete 删除 · 编辑自动保存在本地，「导出 HTML」生成可分发文件</footer>
 
 <script id="mindmap-data" type="application/json">/*__DATA__*/</script>
 <script>
 (function () {
-  var DATA = JSON.parse(document.getElementById('mindmap-data').textContent);
-  var PALETTE = ['#2f6bff', '#8b5cf6', '#22a06b', '#e5484d', '#d97706', '#0891b2', '#db2777', '#65a30d'];
+  var ORIGINAL_TEXT = document.getElementById('mindmap-data').textContent;
+  var DATA = JSON.parse(ORIGINAL_TEXT);
+  var PALETTES = {
+    dark:  ['#5b8cff', '#a78bfa', '#34d399', '#f87171', '#fbbf24', '#22d3ee', '#f472b6', '#a3e635'],
+    light: ['#2f6bff', '#8b5cf6', '#22a06b', '#e5484d', '#d97706', '#0891b2', '#db2777', '#65a30d']
+  };
 
   var treeEl = document.getElementById('tree');
   var wires = document.getElementById('wires');
   var canvas = document.getElementById('canvas');
-  var nodeEls = [];
-  var currentScale = 1;
+  var foot = document.getElementById('foot');
+  var FOOT_TEXT = foot.textContent;
 
+  var currentScale = 1;
+  var currentSheet = 0;
+  var selectedId = null;
+  var idSeq = 1;
+  var nodeEls = [];
+  var undoStack = [], redoStack = [];
+  var collapsed = {};      // sheetIdx -> { nodeId: true=展开 / false=收起 }，覆盖默认（depth<2 展开）
+  var editing = false;     // 正在重命名
+
+  // ---------- 工具 ----------
+  function palette() {
+    return PALETTES[document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'];
+  }
+  function storageKey() {
+    return 'xmind2html:' + (DATA.sheets[0].root.title || 'untitled');
+  }
   function countLeaves(n) {
     if (!n.children || !n.children.length) return 1;
     return n.children.reduce(function (s, c) { return s + countLeaves(c); }, 0);
@@ -278,22 +351,65 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   function countNodes(n) {
     return 1 + (n.children || []).reduce(function (s, c) { return s + countNodes(c); }, 0);
   }
+  function assignIds(n) {
+    n._id = idSeq++;
+    (n.children || []).forEach(assignIds);
+  }
+  function findNode(id, n) {
+    n = n || DATA.sheets[currentSheet].root;
+    if (n._id === id) return n;
+    var kids = n.children || [];
+    for (var i = 0; i < kids.length; i++) {
+      var r = findNode(id, kids[i]);
+      if (r) return r;
+    }
+    return null;
+  }
+  function findParent(id, n) {
+    n = n || DATA.sheets[currentSheet].root;
+    var kids = n.children || [];
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i]._id === id) return n;
+      var r = findParent(id, kids[i]);
+      if (r) return r;
+    }
+    return null;
+  }
+  function isOpen(node, depth) {
+    var ov = (collapsed[currentSheet] || {})[node._id];
+    if (ov != null) return ov;
+    return depth < 2;
+  }
+  function setOpen(node, open) {
+    collapsed[currentSheet] = collapsed[currentSheet] || {};
+    collapsed[currentSheet][node._id] = open;
+  }
+  function saveLocal() {
+    try { localStorage.setItem(storageKey(), JSON.stringify(DATA)); } catch (e) {}
+  }
+  function markDirty() {
+    foot.textContent = FOOT_TEXT + ' · 已修改（自动保存到本地）';
+  }
 
+  // ---------- 渲染 ----------
   function build(node, depth, branchIdx) {
-    var hasKids = node.children && node.children.length > 0;
+    var hasKids = !!(node.children && node.children.length);
+    var open = isOpen(node, depth);
     var wrap = document.createElement('div');
     wrap.className = 'node depth-' + depth + (hasKids ? '' : ' leaf');
-    if (depth === 1) wrap.dataset.branch = String(branchIdx % PALETTE.length);
+    if (depth === 1) wrap.dataset.branch = String(branchIdx % palette().length);
 
     var box = document.createElement('div');
-    box.className = 'box' + (hasKids ? ' parent' : '');
+    box.className = 'box';
+    if (node._id === selectedId) box.classList.add('selected');
     if (depth === 1) {
-      box.style.background = PALETTE[branchIdx % PALETTE.length];
-      box.style.borderColor = PALETTE[branchIdx % PALETTE.length];
+      box.style.background = palette()[branchIdx % palette().length];
+      box.style.borderColor = palette()[branchIdx % palette().length];
     }
     if (node.note) box.title = node.note;
 
     var t = document.createElement('span');
+    t.className = 't';
     t.textContent = node.title;
     box.appendChild(t);
 
@@ -304,7 +420,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       box.appendChild(nf);
     }
 
-    var entry = { el: wrap, box: box, kidsBox: null, toggle: null, depth: depth };
+    var entry = { el: wrap, box: box, kidsBox: null, node: node, depth: depth };
 
     if (hasKids) {
       var cnt = document.createElement('span');
@@ -314,28 +430,37 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
       var tg = document.createElement('span');
       tg.className = 'toggle';
-      tg.textContent = depth < 2 ? '−' : '+';
+      tg.textContent = open ? '−' : '+';
+      tg.title = '展开 / 收起';
       box.appendChild(tg);
 
       var kids = document.createElement('div');
-      kids.className = 'kids' + (depth < 2 ? '' : ' hidden');
+      kids.className = 'kids' + (open ? '' : ' hidden');
       node.children.forEach(function (c, i) {
         kids.appendChild(build(c, depth + 1, depth === 0 ? i : branchIdx));
       });
       entry.kidsBox = kids;
-      entry.toggle = tg;
 
-      box.addEventListener('click', function () {
+      tg.addEventListener('click', function (ev) {
+        ev.stopPropagation();
         var hidden = kids.classList.toggle('hidden');
         tg.textContent = hidden ? '+' : '−';
+        setOpen(node, !hidden);
         requestAnimationFrame(drawWires);
       });
-
-      wrap.appendChild(box);
-      wrap.appendChild(kids);
-    } else {
-      wrap.appendChild(box);
     }
+
+    box.addEventListener('click', function () {
+      if (editing) return;
+      select(node._id);
+    });
+    box.addEventListener('dblclick', function (ev) {
+      ev.stopPropagation();
+      startRename(node, box);
+    });
+
+    wrap.appendChild(box);
+    if (kids) wrap.appendChild(kids);
     nodeEls.push(entry);
     return wrap;
   }
@@ -343,10 +468,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   function branchColorOf(el) {
     var n = el;
     while (n) {
-      if (n.dataset && n.dataset.branch != null) return PALETTE[Number(n.dataset.branch)];
+      if (n.dataset && n.dataset.branch != null) return palette()[Number(n.dataset.branch)];
       n = n.parentElement;
     }
-    return '#1f2329';
+    return '#8b8f98';
   }
 
   function drawWires() {
@@ -370,15 +495,16 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', 'M ' + px + ' ' + py + ' C ' + mid + ' ' + py + ', ' + mid + ' ' + cy + ', ' + cx + ' ' + cy);
         path.setAttribute('stroke', color);
-        path.setAttribute('opacity', '0.55');
+        path.setAttribute('opacity', '0.6');
         wires.appendChild(path);
       });
     });
   }
 
-  function renderSheet(sheet) {
+  function render() {
     nodeEls = [];
     treeEl.innerHTML = '';
+    var sheet = DATA.sheets[currentSheet];
     document.getElementById('docTitle').textContent = sheet.root.title;
     document.getElementById('stats').textContent =
       countNodes(sheet.root) + ' 个节点 · ' + countLeaves(sheet.root) + ' 个叶子节点';
@@ -387,13 +513,271 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     (sheet.root.children || []).forEach(function (c, i) {
       var s = document.createElement('span');
       s.className = 'item';
-      s.innerHTML = '<span class="dot" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
+      s.innerHTML = '<span class="dot" style="background:' + palette()[i % palette().length] + '"></span>' +
         c.title + '（' + countLeaves(c) + '）';
       legend.appendChild(s);
     });
     treeEl.appendChild(build(sheet.root, 0, 0));
+    updateButtons();
     requestAnimationFrame(drawWires);
   }
+
+  function select(id) {
+    selectedId = id;
+    treeEl.querySelectorAll('.box.selected').forEach(function (b) { b.classList.remove('selected'); });
+    if (id != null) {
+      var entry = nodeEls.find(function (e) { return e.node._id === id; });
+      if (entry) entry.box.classList.add('selected');
+    }
+    updateButtons();
+  }
+
+  // ---------- 编辑操作 ----------
+  function pushUndo() {
+    undoStack.push(JSON.stringify(DATA.sheets[currentSheet].root));
+    if (undoStack.length > 100) undoStack.shift();
+    redoStack = [];
+    updateButtons();
+  }
+  function afterEdit(focusId, renameIt) {
+    saveLocal();
+    markDirty();
+    if (focusId != null) selectedId = focusId;
+    render();
+    if (renameIt && focusId != null) {
+      var entry = nodeEls.find(function (e) { return e.node._id === focusId; });
+      if (entry) startRename(entry.node, entry.box);
+    }
+  }
+
+  function addChild() {
+    var sel = findNode(selectedId);
+    if (!sel) return;
+    pushUndo();
+    sel.children = sel.children || [];
+    var nn = { title: '新节点', _id: idSeq++ };
+    sel.children.push(nn);
+    setOpen(sel, true);
+    afterEdit(nn._id, true);
+  }
+  function addSibling() {
+    var sel = findNode(selectedId);
+    if (!sel) return;
+    var parent = findParent(selectedId);
+    if (!parent) { addChild(); return; } // 根节点没有同级，退化为加子节点
+    pushUndo();
+    var idx = parent.children.findIndex(function (c) { return c._id === selectedId; });
+    var nn = { title: '新节点', _id: idSeq++ };
+    parent.children.splice(idx + 1, 0, nn);
+    afterEdit(nn._id, true);
+  }
+  function deleteNode() {
+    var sel = findNode(selectedId);
+    if (!sel) return;
+    var parent = findParent(selectedId);
+    if (!parent) { alert('根节点不能删除'); return; }
+    if (sel.children && sel.children.length &&
+        !confirm('「' + sel.title + '」包含 ' + sel.children.length + ' 个直接子节点，确定一并删除？')) return;
+    pushUndo();
+    parent.children = parent.children.filter(function (c) { return c._id !== selectedId; });
+    afterEdit(parent._id, false);
+  }
+  function startRename(node, box) {
+    if (editing) return;
+    editing = true;
+    var span = box.querySelector('.t');
+    var input = document.createElement('input');
+    input.className = 'rename-input';
+    input.value = node.title;
+    box.replaceChild(input, span);
+    input.focus();
+    input.select();
+    var done = false;
+    function commit(ok) {
+      if (done) return;
+      done = true;
+      editing = false;
+      var v = input.value.trim();
+      if (ok && v && v !== node.title) {
+        pushUndo();
+        node.title = v;
+        afterEdit(node._id, false);
+      } else {
+        render();
+      }
+    }
+    input.addEventListener('blur', function () { commit(true); });
+    input.addEventListener('keydown', function (ev) {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') { commit(true); }
+      else if (ev.key === 'Escape') { commit(false); }
+    });
+    input.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  }
+  function editNote() {
+    var sel = findNode(selectedId);
+    if (!sel) return;
+    var v = prompt('编辑备注（留空则清除备注）：', sel.note || '');
+    if (v == null) return;
+    v = v.trim();
+    if (v === (sel.note || '')) return;
+    pushUndo();
+    if (v) sel.note = v; else delete sel.note;
+    afterEdit(sel._id, false);
+  }
+  function undo() {
+    if (!undoStack.length) return;
+    redoStack.push(JSON.stringify(DATA.sheets[currentSheet].root));
+    DATA.sheets[currentSheet].root = JSON.parse(undoStack.pop());
+    reassignAll();
+    selectedId = null;
+    saveLocal(); markDirty(); render();
+  }
+  function redo() {
+    if (!redoStack.length) return;
+    undoStack.push(JSON.stringify(DATA.sheets[currentSheet].root));
+    DATA.sheets[currentSheet].root = JSON.parse(redoStack.pop());
+    reassignAll();
+    selectedId = null;
+    saveLocal(); markDirty(); render();
+  }
+  function reassignAll() {
+    idSeq = 1;
+    DATA.sheets.forEach(function (s) { assignIds(s.root); });
+  }
+
+  // ---------- 导出 / 重置 ----------
+  function exportHTML() {
+    var json = JSON.stringify(DATA).replace(/<\//g, '<\\/');
+    var html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    html = html.replace(
+      /(<script id="mindmap-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+      function (_, a, b) { return a + json + b; });
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (DATA.sheets[0].root.title || 'mindmap') + '.html';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 100);
+  }
+  function resetAll() {
+    if (!confirm('放弃所有本地编辑，恢复为文件原始内容？')) return;
+    try { localStorage.removeItem(storageKey()); } catch (e) {}
+    DATA = JSON.parse(ORIGINAL_TEXT);
+    reassignAll();
+    collapsed = {};
+    undoStack = []; redoStack = [];
+    selectedId = null;
+    foot.textContent = FOOT_TEXT;
+    render();
+  }
+
+  // ---------- 主题 ----------
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    document.getElementById('btnTheme').textContent = theme === 'dark' ? '浅色' : '深色';
+    try { localStorage.setItem('xmind2html:theme', theme); } catch (e) {}
+  }
+  document.getElementById('btnTheme').addEventListener('click', function () {
+    var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    render();
+  });
+
+  // ---------- 工具栏 ----------
+  function updateButtons() {
+    var hasSel = selectedId != null && !!findNode(selectedId);
+    document.getElementById('btnChild').disabled = !hasSel;
+    document.getElementById('btnSibling').disabled = !hasSel;
+    document.getElementById('btnRename').disabled = !hasSel;
+    document.getElementById('btnNote').disabled = !hasSel;
+    document.getElementById('btnDelete').disabled = !hasSel;
+    document.getElementById('btnUndo').disabled = !undoStack.length;
+    document.getElementById('btnRedo').disabled = !redoStack.length;
+  }
+  document.getElementById('btnChild').addEventListener('click', addChild);
+  document.getElementById('btnSibling').addEventListener('click', addSibling);
+  document.getElementById('btnDelete').addEventListener('click', deleteNode);
+  document.getElementById('btnNote').addEventListener('click', editNote);
+  document.getElementById('btnRename').addEventListener('click', function () {
+    var sel = findNode(selectedId);
+    if (!sel) return;
+    var entry = nodeEls.find(function (e) { return e.node._id === selectedId; });
+    if (entry) startRename(sel, entry.box);
+  });
+  document.getElementById('btnUndo').addEventListener('click', undo);
+  document.getElementById('btnRedo').addEventListener('click', redo);
+  document.getElementById('btnExport').addEventListener('click', exportHTML);
+  document.getElementById('btnReset').addEventListener('click', resetAll);
+
+  document.addEventListener('keydown', function (ev) {
+    if (editing) return;
+    var tag = (ev.target && ev.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') {
+      ev.preventDefault();
+      if (ev.shiftKey) redo(); else undo();
+      return;
+    }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'y') {
+      ev.preventDefault(); redo(); return;
+    }
+    if (selectedId == null) return;
+    if (ev.key === 'Tab') { ev.preventDefault(); addChild(); }
+    else if (ev.key === 'Enter') { ev.preventDefault(); addSibling(); }
+    else if (ev.key === 'Delete' || ev.key === 'Backspace') { ev.preventDefault(); deleteNode(); }
+    else if (ev.key === 'F2') { ev.preventDefault(); document.getElementById('btnRename').click(); }
+  });
+
+  // ---------- 缩放 ----------
+  var zoomResetBtn = document.getElementById('zoomReset');
+  function setScale(s) {
+    currentScale = Math.min(2, Math.max(0.3, s));
+    canvas.style.transform = 'scale(' + currentScale + ')';
+    zoomResetBtn.textContent = Math.round(currentScale * 100) + '%';
+    requestAnimationFrame(drawWires);
+  }
+  document.getElementById('zoomIn').addEventListener('click', function () { setScale(currentScale + 0.1); });
+  document.getElementById('zoomOut').addEventListener('click', function () { setScale(currentScale - 0.1); });
+  zoomResetBtn.addEventListener('click', function () { setScale(1); });
+
+  document.getElementById('expandAll').addEventListener('click', function () {
+    collapsed[currentSheet] = {};
+    nodeEls.forEach(function (e) { setOpen(e.node, true); });
+    render();
+  });
+  document.getElementById('collapseAll').addEventListener('click', function () {
+    collapsed[currentSheet] = {};
+    nodeEls.forEach(function (e) { if (e.depth >= 2) setOpen(e.node, false); });
+    render();
+  });
+
+  window.addEventListener('resize', drawWires);
+  window.addEventListener('load', drawWires);
+
+  // ---------- 初始化 ----------
+  // 主题：本地记忆 > 默认深色
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem('xmind2html:theme'); } catch (e) {}
+  applyTheme(savedTheme === 'light' ? 'light' : 'dark');
+
+  // 本地编辑恢复
+  try {
+    var saved = localStorage.getItem(storageKey());
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      if (parsed && parsed.sheets) {
+        DATA = parsed;
+        markDirty();
+      }
+    }
+  } catch (e) {}
+
+  reassignAll();
 
   // 多画布标签
   if (DATA.sheets.length > 1) {
@@ -406,41 +790,16 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       b.addEventListener('click', function () {
         tabs.querySelectorAll('button').forEach(function (x) { x.className = ''; });
         b.className = 'active';
-        renderSheet(sheet);
+        currentSheet = i;
+        selectedId = null;
+        undoStack = []; redoStack = [];
+        render();
       });
       tabs.appendChild(b);
     });
   }
 
-  // 缩放
-  var zoomReset = document.getElementById('zoomReset');
-  function setScale(s) {
-    currentScale = Math.min(2, Math.max(0.3, s));
-    canvas.style.transform = 'scale(' + currentScale + ')';
-    zoomReset.textContent = Math.round(currentScale * 100) + '%';
-    requestAnimationFrame(drawWires);
-  }
-  document.getElementById('zoomIn').addEventListener('click', function () { setScale(currentScale + 0.1); });
-  document.getElementById('zoomOut').addEventListener('click', function () { setScale(currentScale - 0.1); });
-  zoomReset.addEventListener('click', function () { setScale(1); });
-
-  document.getElementById('expandAll').addEventListener('click', function () {
-    nodeEls.forEach(function (e) {
-      if (e.kidsBox) { e.kidsBox.classList.remove('hidden'); e.toggle.textContent = '−'; }
-    });
-    requestAnimationFrame(drawWires);
-  });
-  document.getElementById('collapseAll').addEventListener('click', function () {
-    nodeEls.forEach(function (e) {
-      if (e.kidsBox && e.depth >= 2) { e.kidsBox.classList.add('hidden'); e.toggle.textContent = '+'; }
-    });
-    requestAnimationFrame(drawWires);
-  });
-
-  window.addEventListener('resize', drawWires);
-  window.addEventListener('load', drawWires);
-
-  renderSheet(DATA.sheets[0]);
+  render();
 })();
 </script>
 </body>
@@ -482,7 +841,7 @@ def convert(input_path, output_path=None, title=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="xmind2html",
-        description="将 .xmind 思维导图转换为独立可交互的 HTML 页面")
+        description="将 .xmind 思维导图转换为独立可交互、可编辑的 HTML 页面")
     parser.add_argument("input", help="输入的 .xmind 文件路径")
     parser.add_argument("-o", "--output", help="输出的 .html 文件路径（默认与输入同名）")
     parser.add_argument("--title", help="覆盖页面标题（默认使用根节点标题）")
